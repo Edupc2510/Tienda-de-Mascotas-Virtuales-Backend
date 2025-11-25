@@ -2,6 +2,10 @@ import express from "express";
 import cors from "cors";
 import { sequelize } from "./database.js";
 import db from "./models/index.js"; // <-- IMPORTA TODOS LOS MODELOS
+import dotenv from "dotenv";
+dotenv.config();
+import { testConnection } from "./database.js";
+testConnection();
 
 const { Usuario, Producto, Orden, OrdProd } = db;
 

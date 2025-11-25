@@ -2,34 +2,17 @@ import fs from "fs";
 import path from "path";
 import { Sequelize } from "sequelize";
 import { fileURLToPath } from "url";
-import configFile from "../config/config.json" with { type: "json" }; // <– aquí cambié assert → with
+import { sequelize } from "../database.js"; // ✅ IMPORTA la conexión real desde database.js
 
 // Emular __dirname en ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const basename = path.basename(__filename);
-const env = process.env.NODE_ENV || "development";
-const config = configFile[env];
 
 export const db = {};
-export let sequelize;
 
-// Crear conexión
-if (config.use_env_variable) {
-  // En production usa DATABASE_URL
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  // En desarrollo usa los datos del config.json
-  sequelize = new Sequelize(
-    config.database,
-    config.username,
-    config.password,
-    config
-  );
-}
 
-// Cargar todos los modelos automáticamente
 const modelFiles = fs
   .readdirSync(__dirname)
   .filter((file) => {
