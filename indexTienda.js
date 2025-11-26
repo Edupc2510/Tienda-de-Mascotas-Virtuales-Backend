@@ -208,6 +208,7 @@ app.get("/ordenes/:id", async (req, res) => {
 });
 
 app.post("/ordenes", async (req, res) => {
+  console.log("Body recibido:", req.body);
   const t = await sequelize.transaction();
 
   try {
