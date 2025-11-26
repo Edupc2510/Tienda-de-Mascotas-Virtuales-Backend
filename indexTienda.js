@@ -224,6 +224,7 @@ app.post("/ordenes", async (req, res) => {
       {
         usuarioId,
         total,
+        items,
         envio: envio || null,
         pago: pago || null,
       },
@@ -232,13 +233,16 @@ app.post("/ordenes", async (req, res) => {
 
     // 2. Insertar productos en OrdProds
     for (const item of items) {
+      const productoId = item.productoId ?? item.id;
+      const cantidad = item.cantidad ?? 1;
+      const precioUnitario = item.precio ?? item.precioUnitario ?? item.precioDescuento ?? item.precioFinal ?? item.precioBase;
+
+      if (!productoId) throw new Error("Item sin productoId/id");
+      if (!precioUnitario && precioUnitario !== 0) throw new Error("Item sin precio");
+      if (!cantidad) throw new Error("Item sin cantidad");
+
       await OrdProd.create(
-        {
-          ordenId: nuevaOrden.id,
-          productoId: item.productoId,
-          cantidad: item.cantidad,
-          precioUnitario: item.precio,
-        },
+        { ordenId: nuevaOrden.id, productoId, cantidad, precioUnitario },
         { transaction: t }
       );
     }
