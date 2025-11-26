@@ -18,7 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 // ========================================================
-// 🟩 PROBAR CONEXIÓN A LA BASE DE DATOS
+// 🟩 PROBAR LA CONEXIÓN A LA BASE DE DATOS
 // ========================================================
 testConnection();
 
