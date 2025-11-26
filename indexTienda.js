@@ -208,13 +208,58 @@ app.get("/ordenes/:id", async (req, res) => {
 });
 
 app.post("/ordenes", async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
-    const nueva = await Orden.create(req.body);
-    res.json(nueva);
+    const { usuarioId, total, items, envio, pago } = req.body;
+
+    if (!usuarioId || !items || items.length === 0) {
+      return res.status(400).json({ error: "Faltan datos para crear orden" });
+    }
+
+    // 1. Crear la orden
+    const nuevaOrden = await Orden.create(
+      {
+        usuarioId,
+        total,
+        envio: envio || null,
+        pago: pago || null,
+      },
+      { transaction: t }
+    );
+
+    // 2. Insertar productos en OrdProds
+    for (const item of items) {
+      await OrdProd.create(
+        {
+          ordenId: nuevaOrden.id,
+          productoId: item.productoId,
+          cantidad: item.cantidad,
+          precioUnitario: item.precio, // o item.precioUnitario
+        },
+        { transaction: t }
+      );
+    }
+
+    await t.commit();
+
+    // 3. Obtener la orden completa con productos
+    const ordenCompleta = await Orden.findByPk(nuevaOrden.id, {
+      include: [
+        { model: Usuario, as: "usuario" },
+        { model: Producto, as: "productos" },
+        { model: OrdProd, as: "detalle" },
+      ],
+    });
+
+    return res.json(ordenCompleta);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error(error);
+    await t.rollback();
+    return res.status(500).json({ error: "Error al crear la orden" });
   }
 });
+
 
 app.put("/ordenes/:id", async (req, res) => {
   const orden = await Orden.findByPk(req.params.id);
