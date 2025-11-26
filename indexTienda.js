@@ -1,3 +1,4 @@
+// indexTienda.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -24,7 +25,7 @@ testConnection();
 
 // Ruta para verificar que el backend responde
 app.get("/", (req, res) => {
-  res.send("🐶 Backend de Kozzy Shop funcionando correctamente.");
+  res.send("🐶 Backend de Kozzy Shop funcionando correctamente (actualizado).");
 });
 
 // ========================================================
@@ -54,8 +55,7 @@ app.post("/usuarios", async (req, res) => {
 
 app.put("/usuarios/:id", async (req, res) => {
   const usuario = await Usuario.findByPk(req.params.id);
-  if (!usuario)
-    return res.status(404).json({ error: "Usuario no encontrado" });
+  if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
   await usuario.update(req.body);
   res.json(usuario);
@@ -63,8 +63,7 @@ app.put("/usuarios/:id", async (req, res) => {
 
 app.delete("/usuarios/:id", async (req, res) => {
   const usuario = await Usuario.findByPk(req.params.id);
-  if (!usuario)
-    return res.status(404).json({ error: "Usuario no encontrado" });
+  if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
   await usuario.destroy();
   res.json({ mensaje: "Usuario eliminado" });
@@ -180,6 +179,7 @@ app.get("/ordenes", async (req, res) => {
       include: [
         { model: Usuario, as: "usuario" },
         { model: Producto, as: "productos" },
+        { model: OrdProd, as: "detalle" },
       ],
     });
     res.json(ordenes);
@@ -195,6 +195,7 @@ app.get("/ordenes/:id", async (req, res) => {
       include: [
         { model: Usuario, as: "usuario" },
         { model: Producto, as: "productos" },
+        { model: OrdProd, as: "detalle" },
       ],
     });
 
@@ -208,7 +209,7 @@ app.get("/ordenes/:id", async (req, res) => {
 });
 
 app.post("/ordenes", async (req, res) => {
-  console.log("Body recibido:", req.body);
+  console.log("📦 Body recibido en /ordenes:", req.body);
   const t = await sequelize.transaction();
 
   try {
@@ -236,7 +237,7 @@ app.post("/ordenes", async (req, res) => {
           ordenId: nuevaOrden.id,
           productoId: item.productoId,
           cantidad: item.cantidad,
-          precioUnitario: item.precio, // o item.precioUnitario
+          precioUnitario: item.precio,
         },
         { transaction: t }
       );
@@ -255,29 +256,10 @@ app.post("/ordenes", async (req, res) => {
 
     return res.json(ordenCompleta);
   } catch (error) {
-    console.error(error);
+    console.error("❌ ERROR AL CREAR ORDEN:", error);
     await t.rollback();
     return res.status(500).json({ error: "Error al crear la orden" });
   }
-});
-
-
-app.put("/ordenes/:id", async (req, res) => {
-  const orden = await Orden.findByPk(req.params.id);
-  if (!orden)
-    return res.status(404).json({ error: "Orden no encontrada" });
-
-  await orden.update(req.body);
-  res.json(orden);
-});
-
-app.delete("/ordenes/:id", async (req, res) => {
-  const orden = await Orden.findByPk(req.params.id);
-  if (!orden)
-    return res.status(404).json({ error: "Orden no encontrada" });
-
-  await orden.destroy();
-  res.json({ mensaje: "Orden eliminada" });
 });
 
 // ========================================================
