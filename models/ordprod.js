@@ -1,15 +1,14 @@
+// models/OrdProds.js
 import { Model } from "sequelize";
 
 export default (sequelize, DataTypes) => {
   class OrdProd extends Model {
     static associate(models) {
-      // Relación con Orden
       OrdProd.belongsTo(models.Orden, {
         foreignKey: "ordenId",
         as: "orden",
       });
 
-      // Relación con Producto
       OrdProd.belongsTo(models.Producto, {
         foreignKey: "productoId",
         as: "producto",
@@ -19,10 +18,25 @@ export default (sequelize, DataTypes) => {
 
   OrdProd.init(
     {
-      ordenId: DataTypes.INTEGER,
-      productoId: DataTypes.INTEGER,
-      cantidad: DataTypes.INTEGER,
-      precioUnitario: DataTypes.FLOAT,
+      ordenId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      productoId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      cantidad: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+        validate: { min: 1 },
+      },
+      precioUnitario: {
+        // 👇 dinero => DECIMAL, NO FLOAT
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+      },
     },
     {
       sequelize,
@@ -33,4 +47,3 @@ export default (sequelize, DataTypes) => {
 
   return OrdProd;
 };
-

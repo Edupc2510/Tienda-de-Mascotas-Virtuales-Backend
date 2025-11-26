@@ -1,15 +1,14 @@
+// models/Orden.js
 import { Model } from "sequelize";
 
 export default (sequelize, DataTypes) => {
   class Orden extends Model {
     static associate(models) {
-      // Usuario 1:N
       Orden.belongsTo(models.Usuario, {
         foreignKey: "usuarioId",
         as: "usuario",
       });
 
-      // Productos N:M
       Orden.belongsToMany(models.Producto, {
         through: models.OrdProd,
         foreignKey: "ordenId",
@@ -17,7 +16,6 @@ export default (sequelize, DataTypes) => {
         as: "productos",
       });
 
-      // Detalle (1:N)
       Orden.hasMany(models.OrdProd, {
         foreignKey: "ordenId",
         as: "detalle",
@@ -33,7 +31,7 @@ export default (sequelize, DataTypes) => {
       },
       items: {
         type: DataTypes.JSON,
-        allowNull: true,
+        allowNull: true, // tu BD puede tener NOT NULL; si es así, guárdalo siempre en el POST
       },
       envio: {
         type: DataTypes.JSON,
@@ -44,7 +42,8 @@ export default (sequelize, DataTypes) => {
         allowNull: true,
       },
       total: {
-        type: DataTypes.FLOAT,
+        // 👇 dinero => DECIMAL, NO FLOAT
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
       estado: {
@@ -62,4 +61,3 @@ export default (sequelize, DataTypes) => {
 
   return Orden;
 };
-

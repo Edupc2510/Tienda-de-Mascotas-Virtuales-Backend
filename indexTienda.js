@@ -28,6 +28,9 @@ app.get("/", (req, res) => {
   res.send("🐶 Backend de Kozzy Shop funcionando correctamente (actualizado).");
 });
 
+// Helper: redondear a 2 decimales
+const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
 // ========================================================
 // USUARIOS
 // ========================================================
@@ -175,13 +178,20 @@ app.delete("/productos/:id", async (req, res) => {
 
 app.get("/ordenes", async (req, res) => {
   try {
+    // Opcional: filtrar por usuarioId si viene en query (?usuarioId=1)
+    const where = {};
+    if (req.query.usuarioId) where.usuarioId = req.query.usuarioId;
+
     const ordenes = await Orden.findAll({
+      where,
       include: [
         { model: Usuario, as: "usuario" },
         { model: Producto, as: "productos" },
         { model: OrdProd, as: "detalle" },
       ],
+      order: [["createdAt", "DESC"]],
     });
+
     res.json(ordenes);
   } catch (err) {
     console.error(err);
@@ -213,43 +223,73 @@ app.post("/ordenes", async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    const { usuarioId, total, items, envio, pago } = req.body;
+    const { usuarioId, items, envio, pago } = req.body;
 
-    if (!usuarioId || !items || items.length === 0) {
+    if (!usuarioId || !Array.isArray(items) || items.length === 0) {
+      await t.rollback();
       return res.status(400).json({ error: "Faltan datos para crear orden" });
     }
 
-    // 1. Crear la orden
+    // 1) Normalizar items (soporta varias estructuras del front)
+    const itemsNormalizados = items.map((item) => {
+      const productoId = item.productoId ?? item.id;
+      const cantidad = Number(item.cantidad ?? 1);
+
+      const precioRaw =
+        item.precio ??
+        item.precioUnitario ??
+        item.precioDescuento ??
+        item.precioFinal ??
+        item.precioBase;
+
+      const precio = Number(precioRaw);
+
+      if (!productoId) throw new Error("Item sin productoId/id");
+      if (!Number.isFinite(cantidad) || cantidad <= 0)
+        throw new Error("Cantidad inválida");
+      if (!Number.isFinite(precio)) throw new Error("Precio inválido");
+
+      return {
+        productoId: Number(productoId),
+        cantidad,
+        precio: round2(precio),
+      };
+    });
+
+    // 2) Calcular total en BACKEND (no confiar en el front)
+    const totalCalculado = round2(
+      itemsNormalizados.reduce((acc, it) => acc + it.precio * it.cantidad, 0)
+    );
+
+    // 3) Crear la orden (guardando items para trazabilidad)
+    //    (Si tu BD tiene items NOT NULL, esto también lo satisface)
     const nuevaOrden = await Orden.create(
       {
         usuarioId,
-        total,
-        items,
+        total: totalCalculado,
+        items: itemsNormalizados,
         envio: envio || null,
         pago: pago || null,
       },
       { transaction: t }
     );
 
-    // 2. Insertar productos en OrdProds
-    for (const item of items) {
-      const productoId = item.productoId ?? item.id;
-      const cantidad = item.cantidad ?? 1;
-      const precioUnitario = item.precio ?? item.precioUnitario ?? item.precioDescuento ?? item.precioFinal ?? item.precioBase;
-
-      if (!productoId) throw new Error("Item sin productoId/id");
-      if (!precioUnitario && precioUnitario !== 0) throw new Error("Item sin precio");
-      if (!cantidad) throw new Error("Item sin cantidad");
-
+    // 4) Insertar detalle en OrdProds
+    for (const it of itemsNormalizados) {
       await OrdProd.create(
-        { ordenId: nuevaOrden.id, productoId, cantidad, precioUnitario },
+        {
+          ordenId: nuevaOrden.id,
+          productoId: it.productoId,
+          cantidad: it.cantidad,
+          precioUnitario: it.precio, // ya redondeado
+        },
         { transaction: t }
       );
     }
 
     await t.commit();
 
-    // 3. Obtener la orden completa con productos
+    // 5) Devolver orden completa
     const ordenCompleta = await Orden.findByPk(nuevaOrden.id, {
       include: [
         { model: Usuario, as: "usuario" },
@@ -262,8 +302,26 @@ app.post("/ordenes", async (req, res) => {
   } catch (error) {
     console.error("❌ ERROR AL CREAR ORDEN:", error);
     await t.rollback();
-    return res.status(500).json({ error: "Error al crear la orden" });
+    return res.status(500).json({ error: error.message || "Error al crear la orden" });
   }
+});
+
+// (Opcional) actualizar orden
+app.put("/ordenes/:id", async (req, res) => {
+  const orden = await Orden.findByPk(req.params.id);
+  if (!orden) return res.status(404).json({ error: "Orden no encontrada" });
+
+  await orden.update(req.body);
+  res.json(orden);
+});
+
+// (Opcional) eliminar orden
+app.delete("/ordenes/:id", async (req, res) => {
+  const orden = await Orden.findByPk(req.params.id);
+  if (!orden) return res.status(404).json({ error: "Orden no encontrada" });
+
+  await orden.destroy();
+  res.json({ mensaje: "Orden eliminada" });
 });
 
 // ========================================================
