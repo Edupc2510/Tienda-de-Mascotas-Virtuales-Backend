@@ -31,6 +31,16 @@ app.get("/", (req, res) => {
 // Helper: redondear a 2 decimales
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
+// Helper: includes consistentes para orden
+const ordenIncludes = [
+  { model: Usuario, as: "usuario" },
+  {
+    model: OrdProd,
+    as: "detalle",
+    include: [{ model: Producto, as: "producto" }], // 👈 para nombre/imagen/etc
+  },
+];
+
 // ========================================================
 // USUARIOS
 // ========================================================
@@ -184,15 +194,7 @@ app.get("/ordenes", async (req, res) => {
 
     const ordenes = await Orden.findAll({
       where,
-      include: [
-        { model: Usuario, as: "usuario" },
-        // 👇 detalle con el producto incluido, para tener nombre, imagen, etc.
-        {
-          model: OrdProd,
-          as: "detalle",
-          include: [{ model: Producto, as: "producto" }],
-        },
-      ],
+      include: ordenIncludes,
       order: [["createdAt", "DESC"]],
     });
 
@@ -206,14 +208,7 @@ app.get("/ordenes", async (req, res) => {
 app.get("/ordenes/:id", async (req, res) => {
   try {
     const orden = await Orden.findByPk(req.params.id, {
-      include: [
-        { model: Usuario, as: "usuario" },
-        {
-          model: OrdProd,
-          as: "detalle",
-          include: [{ model: Producto, as: "producto" }],
-        },
-      ],
+      include: ordenIncludes,
     });
 
     orden
@@ -297,14 +292,7 @@ app.post("/ordenes", async (req, res) => {
 
     // 5) Devolver orden completa con detalle + producto
     const ordenCompleta = await Orden.findByPk(nuevaOrden.id, {
-      include: [
-        { model: Usuario, as: "usuario" },
-        {
-          model: OrdProd,
-          as: "detalle",
-          include: [{ model: Producto, as: "producto" }],
-        },
-      ],
+      include: ordenIncludes,
     });
 
     return res.json(ordenCompleta);
