@@ -186,8 +186,12 @@ app.get("/ordenes", async (req, res) => {
       where,
       include: [
         { model: Usuario, as: "usuario" },
-        { model: Producto, as: "productos" },
-        { model: OrdProd, as: "detalle" },
+        // 👇 detalle con el producto incluido, para tener nombre, imagen, etc.
+        {
+          model: OrdProd,
+          as: "detalle",
+          include: [{ model: Producto, as: "producto" }],
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -204,8 +208,11 @@ app.get("/ordenes/:id", async (req, res) => {
     const orden = await Orden.findByPk(req.params.id, {
       include: [
         { model: Usuario, as: "usuario" },
-        { model: Producto, as: "productos" },
-        { model: OrdProd, as: "detalle" },
+        {
+          model: OrdProd,
+          as: "detalle",
+          include: [{ model: Producto, as: "producto" }],
+        },
       ],
     });
 
@@ -262,7 +269,6 @@ app.post("/ordenes", async (req, res) => {
     );
 
     // 3) Crear la orden (guardando items para trazabilidad)
-    //    (Si tu BD tiene items NOT NULL, esto también lo satisface)
     const nuevaOrden = await Orden.create(
       {
         usuarioId,
@@ -289,12 +295,15 @@ app.post("/ordenes", async (req, res) => {
 
     await t.commit();
 
-    // 5) Devolver orden completa
+    // 5) Devolver orden completa con detalle + producto
     const ordenCompleta = await Orden.findByPk(nuevaOrden.id, {
       include: [
         { model: Usuario, as: "usuario" },
-        { model: Producto, as: "productos" },
-        { model: OrdProd, as: "detalle" },
+        {
+          model: OrdProd,
+          as: "detalle",
+          include: [{ model: Producto, as: "producto" }],
+        },
       ],
     });
 
@@ -302,7 +311,9 @@ app.post("/ordenes", async (req, res) => {
   } catch (error) {
     console.error("❌ ERROR AL CREAR ORDEN:", error);
     await t.rollback();
-    return res.status(500).json({ error: error.message || "Error al crear la orden" });
+    return res
+      .status(500)
+      .json({ error: error.message || "Error al crear la orden" });
   }
 });
 
@@ -328,6 +339,4 @@ app.delete("/ordenes/:id", async (req, res) => {
 // SERVIDOR
 // ========================================================
 
-app.listen(PORT, () =>
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`)
-);
+app.listen(PORT, () => console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`));
