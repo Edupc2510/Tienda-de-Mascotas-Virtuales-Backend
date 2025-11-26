@@ -28,6 +28,11 @@ app.get("/", (req, res) => {
   res.send("🐶 Backend de Kozzy Shop funcionando correctamente (actualizado).");
 });
 
+// (Opcional) endpoint para verificar despliegue/version
+app.get("/version", (req, res) => {
+  res.json({ version: "2025-11-26-1" });
+});
+
 // Helper: redondear a 2 decimales
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
@@ -263,19 +268,43 @@ app.post("/ordenes", async (req, res) => {
       itemsNormalizados.reduce((acc, it) => acc + it.precio * it.cantidad, 0)
     );
 
-    // 3) Crear la orden (guardando items para trazabilidad)
+    // 3) Enriquecer items con info del producto para que el front pueda usar orden.items.nombre
+    const ids = [...new Set(itemsNormalizados.map((x) => x.productoId))];
+
+    const productos = await Producto.findAll({
+      where: { id: ids },
+      attributes: ["id", "nombre", "imagenUrl"],
+      transaction: t,
+    });
+
+    const mapProd = new Map(productos.map((p) => [p.id, p]));
+
+    const itemsConNombre = itemsNormalizados.map((it) => {
+      const p = mapProd.get(it.productoId);
+      if (!p) throw new Error(`Producto no existe: ${it.productoId}`);
+
+      return {
+        productoId: it.productoId,
+        nombre: p.nombre,
+        imagenUrl: p.imagenUrl,
+        cantidad: it.cantidad,
+        precio: it.precio,
+      };
+    });
+
+    // 4) Crear la orden (guardando items enriquecidos)
     const nuevaOrden = await Orden.create(
       {
         usuarioId,
         total: totalCalculado,
-        items: itemsNormalizados,
+        items: itemsConNombre,
         envio: envio || null,
         pago: pago || null,
       },
       { transaction: t }
     );
 
-    // 4) Insertar detalle en OrdProds
+    // 5) Insertar detalle en OrdProds
     for (const it of itemsNormalizados) {
       await OrdProd.create(
         {
@@ -290,7 +319,7 @@ app.post("/ordenes", async (req, res) => {
 
     await t.commit();
 
-    // 5) Devolver orden completa con detalle + producto
+    // 6) Devolver orden completa con detalle + producto
     const ordenCompleta = await Orden.findByPk(nuevaOrden.id, {
       include: ordenIncludes,
     });
@@ -326,5 +355,6 @@ app.delete("/ordenes/:id", async (req, res) => {
 // ========================================================
 // SERVIDOR
 // ========================================================
-
-app.listen(PORT, () => console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`)
+);
