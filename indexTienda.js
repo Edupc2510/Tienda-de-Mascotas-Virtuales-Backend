@@ -1,11 +1,13 @@
 import express from "express";
 import cors from "cors";
-import { sequelize } from "./database.js";
-import db from "./models/index.js"; // <-- IMPORTA TODOS LOS MODELOS
 import dotenv from "dotenv";
 dotenv.config();
-import { testConnection } from "./database.js";
-testConnection();
+
+// Base de datos
+import { sequelize, testConnection } from "./database.js";
+
+// Importa TODOS los modelos desde models/index.js
+import db from "./models/index.js";
 
 const { Usuario, Producto, Orden, OrdProd } = db;
 
@@ -15,15 +17,15 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// 🔄 Probar conexión BD
-(async () => {
-  try {
-    await sequelize.authenticate();
-    console.log("✅ Conexión a la BD exitosa");
-  } catch (err) {
-    console.error("❌ Error al conectar a la BD:", err);
-  }
-})();
+// ========================================================
+// 🟩 PROBAR CONEXIÓN A LA BASE DE DATOS
+// ========================================================
+testConnection();
+
+// Ruta para verificar que el backend responde
+app.get("/", (req, res) => {
+  res.send("🐶 Backend de Kozzy Shop funcionando correctamente.");
+});
 
 // ========================================================
 // USUARIOS
@@ -131,8 +133,7 @@ app.post("/login", async (req, res) => {
 // ========================================================
 
 app.get("/productos", async (req, res) => {
-  const productos = await Producto.findAll();
-  res.json(productos);
+  res.json(await Producto.findAll());
 });
 
 app.get("/productos/:id", async (req, res) => {
@@ -181,7 +182,6 @@ app.get("/ordenes", async (req, res) => {
         { model: Producto, as: "productos" },
       ],
     });
-
     res.json(ordenes);
   } catch (err) {
     console.error(err);

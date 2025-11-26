@@ -1,5 +1,5 @@
 'use strict';
-module.exports = {
+export default {
   async up(queryInterface, Sequelize) {
     await queryInterface.bulkInsert('Productos', [
       { nombre: "Neuro", descripcion: '{"personalidad": "Analítica y paciente", "funcion": "Resuelve problemas lógicos", "poderEspecial": "Da pistas en acertijos complejos", "beneficio": "Desarrolla pensamiento crítico"}', imagenUrl: "/images/BR01.png", imagenUrlCartoon: "/images/BR01C.png", precio: 28.50, categoria: "Brainy", activo: true, ventasMes: 120, createdAt: new Date(), updatedAt: new Date() },
